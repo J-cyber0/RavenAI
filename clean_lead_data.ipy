@@ -1,0 +1,41 @@
+import pandas as pd
+import json
+import re
+
+def fix_json_format(json_str):
+    # Replace single quotes with double quotes
+    fixed_str = json_str.replace("'", "\"")
+    # Attempt to insert missing commas
+    fixed_str = re.sub(r'}\s*{', '}, {', fixed_str)
+    return fixed_str
+
+def extract_reviews_from_row(row):
+    reviews = []
+    try:
+        # Fix JSON formatting issues in the 'reviews' column
+        reviews_str_fixed = fix_json_format(row['reviews'])
+        # Parse the JSON string
+        reviews_json = json.loads(reviews_str_fixed)
+        reviews.extend(reviews_json)
+    except Exception as e:
+        print(f"Error extracting reviews from row: {e}")
+    return reviews
+
+def extract_reviews(file_path, sheet_name='Sheet1'):
+    try:
+        # Read the Excel file
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
+        # Extract and clean reviews from each row
+        all_reviews = df.apply(extract_reviews_from_row, axis=1).tolist()
+        # Flatten the list of lists
+        flattened_reviews = [review for sublist in all_reviews for review in sublist]
+        return flattened_reviews
+    except Exception as e:
+        print(f"Error reading Excel file: {e}")
+        return []
+
+if __name__ == "__main__":
+    file_path = 'LawnCareProviders_SanAntonio.xlsx'  # Update with your file path
+    reviews = extract_reviews(file_path)
+    if reviews:
+        print(reviews)

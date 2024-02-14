@@ -1,0 +1,101 @@
+from flask import Flask, request, send_from_directory
+import logging
+from datetime import datetime
+import threading
+import time
+import os
+import re  # Import the regex module
+import pandas as pd  # Import pandas for Excel file handling
+
+app = Flask(__name__, static_folder='static')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+received_data_from_air_ai = False
+webhook_data_list = []  # A list to store webhook data
+
+def heartbeat():
+    while True:
+        logging.info("Heartbeat: Flask app is running.")
+        if received_data_from_air_ai:
+            logging.info("Heartbeat: Data has been received from Air AI API.")
+        else:
+            logging.info("Heartbeat: Waiting for data from Air AI API.")
+        time.sleep(60)  # Log every 60 seconds
+        export_to_excel()  # Export data to Excel file periodically
+
+def looks_like_spoken_numbers(text):
+    # This regex checks for spoken numbers in the transcript
+    return bool(re.search(r'\b(one|two|three|four|five|six|seven|eight|nine|zero)\b', text, re.IGNORECASE))
+
+def export_to_excel():
+    if not webhook_data_list:  # Check if the list is not empty
+        logging.info("No new data to export.")
+        return
+
+    # Convert list of dictionaries to a DataFrame
+    new_data_df = pd.DataFrame(webhook_data_list)
+    
+    # Define the Excel file path
+    file_path = f'C:\\Users\\marti\\Documents\\Trade_Closer_Campaign_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    
+    # Check if the file already exists
+    if os.path.exists(file_path):
+        # If the file exists, read the existing content into a DataFrame
+        existing_data_df = pd.read_excel(file_path)
+        # Use pd.concat to append new data to the existing DataFrame
+        updated_df = pd.concat([existing_data_df, new_data_df], ignore_index=True)
+    else:
+        updated_df = new_data_df
+    
+    # Export the updated DataFrame to the Excel file
+    updated_df.to_excel(file_path, index=False, engine='openpyxl')
+    logging.info(f"Data appended successfully to {file_path}")
+
+    # Clear the list after exporting
+    webhook_data_list.clear()
+
+
+@app.route('/')
+def home():
+    return 'Welcome to the Flask App!'
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    global received_data_from_air_ai
+    data = request.json
+    if data:
+        received_data_from_air_ai = True
+        logging.info(f"Received webhook at {datetime.now()}: {data}")
+        
+        # Extract relevant information from the webhook data
+        call_info = {
+            'sid': data.get('call', {}).get('sid', ''),
+            'fromNumber': data.get('call', {}).get('fromNumber', ''),
+            'toNumber': data.get('call', {}).get('toNumber', ''),
+            'duration': data.get('call', {}).get('duration', 0),
+            'direction': data.get('call', {}).get('direction', ''),
+            'cachedLeadName': data.get('call', {}).get('cachedLeadName', ''),
+            'outcome': data.get('call', {}).get('outcome', ''),
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        webhook_data_list.append(call_info)
+
+        transcript = data.get('call', {}).get('transcript', '')
+        if transcript and looks_like_spoken_numbers(transcript):
+            logging.info("Detected spoken numbers in transcript.")
+            print("Detected spoken numbers in transcript.")
+        else:
+            logging.info("No action taken: No spoken numbers detected or transcript empty.")
+
+    return 'Success', 200
+
+if __name__ == '__main__':
+    threading.Thread(target=heartbeat, daemon=True).start()
+    logging.info("Flask app is starting. Preparing to receive data from Air AI...")
+    app.run(debug=True, host='0.0.0.0', port=5000)  # Consider using host='0.0.0.0' to allow external access

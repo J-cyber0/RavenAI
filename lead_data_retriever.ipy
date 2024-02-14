@@ -1,0 +1,58 @@
+import requests
+import pandas as pd
+import os
+import config
+import json
+
+API_KEY = config.GOOG_PLACES_API_KEY
+SEARCH_QUERY = "lawn care providers in San Antonio"
+FILENAME = "LawnCareProviders_SanAntonio.xlsx"  # Name of the Excel file to create/update
+
+headers = {
+    'Content-Type': 'application/json',
+    'X-Goog-Api-Key': API_KEY,
+    'X-Goog-FieldMask': 'places.id,places.name,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.reviews'
+}
+
+post_data = {'textQuery': SEARCH_QUERY}
+url = 'https://places.googleapis.com/v1/places:searchText'
+
+# Make the initial POST request to the Google Places API
+response = requests.post(url, headers=headers, json=post_data)
+data = response.json()
+
+# Check if the status of the request is OK and collect the results
+if response.status_code == 200 and 'places' in data:
+    # Extract reviews and clean JSON format
+    for place in data['places']:
+        reviews = place.get('reviews', [])
+        reviews_str = json.dumps(reviews)  # Convert reviews to JSON string
+        place['reviews'] = reviews_str  # Replace reviews with cleaned JSON string
+    
+    # Convert the places data to a pandas DataFrame
+    places_df = pd.DataFrame(data['places'])
+
+    # Extract and clean 'displayName' to 'Company Name'
+    if 'displayName' in places_df.columns:
+        places_df['Company Name'] = places_df['displayName'].apply(lambda x: x['text'] if isinstance(x, dict) and 'text' in x else None)
+        places_df.drop('displayName', axis=1, inplace=True)  # Remove the original 'displayName' column
+    
+    # Rename other columns as needed
+    places_df.rename(columns={'name': 'Name', 'formattedAddress': 'Address', 'nationalPhoneNumber': 'Phone Number'}, inplace=True)
+
+    # Check if the Excel file already exists
+    if os.path.exists(FILENAME):
+        # Read the existing data
+        existing_df = pd.read_excel(FILENAME)
+        # Append new data
+        updated_df = pd.concat([existing_df, places_df], ignore_index=True)
+    else:
+        updated_df = places_df
+
+    # Save/Update the Excel file with the new data
+    with pd.ExcelWriter(FILENAME, engine='openpyxl', mode='w') as writer:
+        updated_df.to_excel(writer, index=False)
+
+    print(f"Data saved to {FILENAME}.")
+else:
+    print(f"Error: {data.get('error', 'Failed to retrieve data')}")

@@ -1,0 +1,50 @@
+{
+    "models": {
+      "gemini_pro": {
+        "display_name": "Gemini Pro",
+        "model_code": "models/gemini-pro",
+        "description": "Model targeted for text generation",
+        "supported_generation_methods": ["generateContent"],
+        "temperature": 0.2,
+        "top_p": 0.3,
+        "top_k": 1,
+        "input_token_limit": 30720,
+        "max_output_tokens": 10,
+        "rate_limit": 60,
+        "safety_settings": "Automatically applied safety settings which are adjustable by developers."
+      },
+      "gemini_pro_vision": {
+        "display_name": "Gemini Pro Vision",
+        "model_code": "models/gemini-pro-vision",
+        "description": "Model that can take multimodal inputs, text and image.",
+        "supported_generation_methods": ["generateContent"],
+        "temperature": 0.9,
+        "top_p": 1,
+        "top_k": 1,
+        "input_token_limit": 12288,
+        "output_token_limit": 4096,
+        "rate_limit": 60,
+        "safety_settings": "Automatically applied safety settings which are adjustable by developers."
+      },
+      "embedding": {
+        "display_name": "Embedding",
+        "model_code": "models/embedding-001",
+        "description": "Generates text embeddings for the input text.",
+        "supported_generation_methods": ["embedContent"],
+        "rate_limit": 1500,
+        "safety_settings": "No adjustable safety settings."
+      },
+      "aqa": {
+        "display_name": "AQA",
+        "model_code": "models/aqa",
+        "description": "Model that performs Attributed Question Answering.",
+        "supported_generation_methods": ["generateAnswer"],
+        "supported_languages": ["English"],
+        "input_token_limit": 7168,
+        "output_token_limit": 1024,
+        "rate_limit": 60,
+        "safety_settings": "Automatically applied safety settings which are adjustable by developers."
+      }
+    }
+  }
+  
